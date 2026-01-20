@@ -1,0 +1,39 @@
+name: runtimes
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v1.x
+
+      - name: Setup nodejs
+        uses: dreamcodez/dead-simple-nodejs@1.0.1
+        with:
+          NODE_VERSION: 24.13.0
+
+      - name: Run bun
+        run: bun test.ts
+
+      - name: Run deno
+        run: deno test.ts
+
+      - name: Run nodejs
+        run: node test.ts
