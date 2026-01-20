@@ -4,12 +4,13 @@ import { Bytes, type TypeAsString } from "./src/index.ts";
 function assert<T>(a: T, b: T, msg = ""): void {
   // console.log(a);
   // console.log(b);
+  const err_msg = `ASSERT_ERROR: ${msg}`;
   if(Array.isArray(a) && Array.isArray(b)) {
-    if(a.length != b.length) throw msg;
+    if(a.length != b.length) throw err_msg;
     for(let i = 0; i < a.length; i++) {
-      if(a[i] != b[i]) throw msg;
+      if(a[i] != b[i]) throw err_msg;
     }
-  } else if(a != b) throw msg;
+  } else if(a != b) throw err_msg;
 }
 
 // console.log(Bytes.from("bool")(true));
@@ -52,10 +53,6 @@ sample.forEach(el => {
   console.log(`<${converted_type}> ${el[0]} ==>`, res, `=>>`, contra_res)
   assert(converted_type, el[1], `${converted_type} != ${el[1]}`);
   assert(res, el[2], `${res} != ${el[2]}`);
-  if(converted_type == `float`) {
-    console.error(`float broken`);
-    return;
-  }
   assert(contra_res, el[0], `${contra_res} != ${el[0]}`);
 });
 
