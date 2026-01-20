@@ -4,20 +4,20 @@ export type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
-export type TypeAsString = `string` | `byte` | `float` | `int` | `float4` | `bool` | `struct`;
+export type TypeAsString = `string` | `byte` | `double` | `int` | `float` | `bool` | `struct`;
 
 export type TypeFromString = {
   string: string;
   byte: number;
+  double: number;
   float: number;
-  float4: number;
   int: number;
   bool: boolean;
   struct: object;
 } & { [k: string]: Uint8Array };
 
 export type DecodeField = { name: string } & (
-  | ({ type: `byte` | `float` | `int` | `float4`; } & ({ bits: number; } | { bytes: number; }))
+  | ({ type: `byte` | `double` | `int` | `float`; } & ({ bits: number; } | { bytes: number; }))
   | ({ type: `string`; bytes?: number; })
   | ({ type: `bool`; } & ({ bits: number; } | { bytes: number; }))
   | ({ type: `struct`; description: DecodeDescription; } & ({ bits: number; } | { bytes: number; }))
@@ -38,7 +38,7 @@ type DuplesFormDecodeDescription<DD extends DecodeDescription> = {
 };
 
 export type DecoderOutput<DD extends DecodeDescription> = Prettify<Duples2Obj<DuplesFormDecodeDescription<DD>>>;
-//const toFloat1 = (value) => { const bits = (value[3] << 24) | (value[2] << 16) | (value[1] << 8) | value[0]; const sign = bits >>> 31 === 0 ? 1.0 : -1.0; const e = (bits >>> 23) & 0xff; const m = e === 0 ? (bits & 0x7fffff) << 1 : (bits & 0x7fffff) | 0x800000; return (sign * m * Math.pow(2, e - 150)); };
+//const todouble1 = (value) => { const bits = (value[3] << 24) | (value[2] << 16) | (value[1] << 8) | value[0]; const sign = bits >>> 31 === 0 ? 1.0 : -1.0; const e = (bits >>> 23) & 0xff; const m = e === 0 ? (bits & 0x7fffff) << 1 : (bits & 0x7fffff) | 0x800000; return (sign * m * Math.pow(2, e - 150)); };
 
 export abstract class Bytes {
   static to<T extends TypeAsString>(type: T): (value: Uint8Array) => TypeFromString[T] | void {
@@ -50,13 +50,21 @@ export abstract class Bytes {
           return value[0] as TypeFromString[T];
         case `int`:
           return (value[0] | (value[1] << 8) | (value[2] << 16) | (value[3] << 24)) as TypeFromString[T];
-        case `float4`:
+        case `double`:
         case `float`: {
-          const bits = (value[3] << 24) | (value[2] << 16) | (value[1] << 8) | value[0];
-          const sign = bits >>> 31 === 0 ? 1.0 : -1.0;
-          const e = (bits >>> 23) & 0xff;
-          const m = e === 0 ? (bits & 0x7fffff) << 1 : (bits & 0x7fffff) | 0x800000;
-          return (sign * m * Math.pow(2, e - 150)) as TypeFromString[T];
+          const view = new DataView(
+            value.buffer,
+            value.byteOffset,
+            value.byteLength
+          );
+
+          if (value.length === 4) {
+            return view.getFloat32(0, true) as TypeFromString[T];
+          }
+          if (value.length === 8) {
+            return view.getFloat64(0, true) as TypeFromString[T];
+          }
+          return 0 as TypeFromString[T];
         }
         case `bool`: {
           return value[0] > 0 as TypeFromString[T];
@@ -105,7 +113,7 @@ export abstract class Bytes {
   //          return value[0] as TypeFromString[T];
   //        case `int`:
   //          return (value[0] | (value[1] << 8) | (value[2] << 16) | (value[3] << 24)) as TypeFromString[T];
-  //        case `float`: {
+  //        case `double`: {
   //          const bits = (value[3] << 24) | (value[2] << 16) | (value[1] << 8) | value[0];
   //          const sign = bits >>> 31 === 0 ? 1.0 : -1.0;
   //          const e = (bits >>> 23) & 0xff;
@@ -135,13 +143,13 @@ export abstract class Bytes {
         case `bool`: {
           return new Uint8Array([ (value as boolean) ? 1 : 0 ]);
         }
-        case `float`: {
+        case `double`: {
           const arr = new ArrayBuffer(8);
           const view = new DataView(arr);
           view.setFloat64(0, value as number, true);
           return new Uint8Array(arr);
         }
-        case `float4`: {
+        case `float`: {
           const arr = new ArrayBuffer(4);
           const view = new DataView(arr);
           view.setFloat32(0, value as number, true);
@@ -244,7 +252,7 @@ export function strlen(buff: Uint8Array): number {
   return buff.length;
 }
 
-// TODO: deal with floats, ints and other types
+// TODO: deal with doubles, ints and other types
 export function decoder<T extends DecodeDescription>(desc: T): (value: Uint8Array) => DecoderOutput<T> {
   let pos = 0;
   return value => {
