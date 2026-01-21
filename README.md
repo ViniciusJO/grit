@@ -39,9 +39,6 @@ This is a source‑first library. Copy or vendor the file directly, or install v
 ```ts
 import {
   Bytes,
-  encoder,
-  decoder,
-  min_size_in_memory,
 } from "./bytes.ts";
 ```
 
@@ -138,12 +135,12 @@ const b64 = Bytes.toBase64(buf);
 
 ### Bit & Byte Manipulation
 
-#### `reframe(offset, bits)`
+#### `Bytes.reframe(offset, bits)`
 
 Extracts a bit‑range from a `Uint8Array`.
 
 ```ts
-const slice = reframe(3, 5)(buffer);
+const slice = Bytes.reframe(3, 5)(buffer);
 ```
 
 * `offset` → starting bit
@@ -153,22 +150,22 @@ Result is right‑aligned and byte‑packed.
 
 ---
 
-#### `_reframe(offset, bytes)`
+#### `Bytes._reframe(offset, bytes)`
 
 Extracts raw bytes from a buffer.
 
 ```ts
-const chunk = _reframe(2, 4)(buffer);
+const chunk = Bytes._reframe(2, 4)(buffer);
 ```
 
 ---
 
-#### `strlen(buffer)`
+#### `Bytes.strlen(buffer)`
 
 C‑style string length detection (null‑terminated).
 
 ```ts
-const len = strlen(buffer);
+const len = Bytes.strlen(buffer);
 ```
 
 ---
@@ -228,12 +225,12 @@ type PacketType = DescribedType<typeof Packet>;
 
 ### Size Calculation
 
-#### `min_size_in_memory(description)`
+#### `Bytes.size_in_memory(description)`
 
 Computes the minimum required size in bytes.
 
 ```ts
-const size = min_size_in_memory(Packet);
+const size = Bytes.size_in_memory(Packet);
 ```
 
 Works recursively for arrays and structs.
@@ -242,12 +239,12 @@ Works recursively for arrays and structs.
 
 ### Encoding
 
-#### `encoder(description)`
+#### `Bytes.encoder(description)`
 
 Returns a function that encodes structured data into binary.
 
 ```ts
-const encode = encoder(Packet);
+const encode = Bytes.encoder(Packet);
 const buf = encode({ id: 1, temperature: 36.5, valid: true });
 ```
 
@@ -255,12 +252,12 @@ const buf = encode({ id: 1, temperature: 36.5, valid: true });
 
 ### Decoding
 
-#### `decoder(description)`
+#### `Bytes.decoder(description)`
 
 Returns a function that decodes binary data into structured objects.
 
 ```ts
-const decode = decoder(Packet);
+const decode = Bytes.decoder(Packet);
 const value = decode(buf);
 ```
 

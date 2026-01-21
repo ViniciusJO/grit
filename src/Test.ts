@@ -34,7 +34,7 @@ export function assert_equals(a: unknown, b: unknown, msg?: string) {
 export async function run_tests(): Promise<void> {
   const failed: Array<string> = [];
 
-  console.log(`\n${esc_blue}[ Test Runner ]${esc_reset}\n ${name}`);
+  console.log(`\n${esc_blue}[ Test Runner ]${esc_reset}\n`);
 
   for (const { name, fn } of tests) {
     try {
