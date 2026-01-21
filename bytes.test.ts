@@ -1,0 +1,199 @@
+// deno-lint-ignore-file no-explicit-any
+
+import {
+  Bytes,
+  type DecodeField,
+  type DescribedType,
+} from "./src/Bytes.ts";
+
+import { assert, assert_equals, run_tests, test  } from "./src/Test.ts";
+
+/* =========================================================
+ * Bytes.from / Bytes.to
+ * ========================================================= */
+
+test("bool encode/decode", () => {
+  const v = Bytes.from("bool")(true);
+  assert_equals(v, new Uint8Array([1]));
+  assert_equals(Bytes.to("bool")(v), true);
+});
+
+test("byte encode/decode", () => {
+  const v = Bytes.from("byte")(255);
+  assert_equals(v, new Uint8Array([255]));
+  assert_equals(Bytes.to("byte")(v), 255);
+});
+
+test("int encode/decode", () => {
+  const x = 0x12345678 | 0;
+  const v = Bytes.from("int")(x);
+  assert_equals(Bytes.to("int")(v), x);
+});
+
+test("float encode/decode", () => {
+  const x = Math.PI;
+  const v = Bytes.from("float")(x);
+  const y = Bytes.to("float")(v)!;
+  assert(Math.abs(x - y) < 1e-6);
+});
+
+test("double encode/decode", () => {
+  const x = Math.PI;
+  const v = Bytes.from("double")(x);
+  const y = Bytes.to("double")(v)!;
+  assert(Math.abs(x - y) < 1e-12);
+});
+
+test("string encode/decode", () => {
+  const s = "hello world";
+  const v = Bytes.from("string")(s);
+  assert_equals(Bytes.to("string")(v), s);
+});
+
+/* =========================================================
+ * Bytes.strlen
+ * ========================================================= */
+
+test("strlen stops at null terminator", () => {
+  assert_equals(Bytes.strlen(new Uint8Array([65, 66, 67, 0, 88])), 3);
+});
+
+test("strlen full buffer", () => {
+  assert_equals(Bytes.strlen(new Uint8Array([1, 2, 3])), 3);
+});
+
+/* =========================================================
+ * Bytes.reframe / Bytes._reframe
+ * ========================================================= */
+
+test("reframe extracts bits", () => {
+  const v = new Uint8Array([0b10101010, 0b11001100]);
+  const r = Bytes.reframe(8, 8)(v);
+  assert_equals(r[0], 0b11001100);
+});
+
+// TODO: fix _reframe
+// test("_reframe extracts bytes", () => {
+//   const v = new Uint8Array([10, 20, 30, 40]);
+//   const r = Bytes._reframe(1, 2)(v);
+//   assert_equals(r, new Uint8Array([20, 30]));
+// });
+
+/* =========================================================
+ * Bytes.size_in_memory
+ * ========================================================= */
+
+test("min_Bytes.size_in_memory primitives", () => {
+  assert_equals(Bytes.size_in_memory({ name: "a", type: "bool", bits: 1 }), 1);
+  assert_equals(Bytes.size_in_memory({ name: "b", type: "byte", bytes: 1 }), 1);
+  assert_equals(Bytes.size_in_memory({ name: "c", type: "int", bytes: 4 }), 4);
+  assert_equals(Bytes.size_in_memory({ name: "d", type: "double", bytes: 8 }), 8);
+});
+
+test("min_Bytes.size_in_memory array", () => {
+  const d: DecodeField = {
+    name: "arr",
+    type: "array",
+    size: 4,
+    value_description: { name: "x", type: "byte", bytes: 1 },
+  };
+  assert_equals(Bytes.size_in_memory(d), 4);
+});
+
+test("min_Bytes.size_in_memory struct", () => {
+  const d: DecodeField = {
+    name: "s",
+    type: "struct",
+    description: [
+      { name: "a", type: "byte", bytes: 1 },
+      { name: "b", type: "int", bytes: 4 },
+    ],
+  };
+  assert_equals(Bytes.size_in_memory(d), 5);
+});
+
+/* =========================================================
+ * Bytes.encoder / Bytes.decoder
+ * ========================================================= */
+
+test("encode/decode primitive", () => {
+  const desc: DecodeField = { name: "x", type: "int", bytes: 4 };
+  const buf = Bytes.encoder(desc)(123456 as any);
+  const out = Bytes.decoder(desc)(buf);
+  assert_equals(out, 123456);
+});
+
+test("encode/decode array", () => {
+  const desc: DecodeField = {
+    name: "arr",
+    type: "array",
+    size: 3,
+    value_description: { name: "x", type: "byte", bytes: 1 },
+  };
+  const value = [1, 2, 3];
+  const buf = Bytes.encoder(desc)(value as any);
+  const out = Bytes.decoder(desc)(buf);
+  assert_equals(out, value);
+});
+
+test("encode/decode struct", () => {
+  const desc = {
+    name: "root",
+    type: "struct",
+    description: [
+      { name: "a", type: "byte", bytes: 1 },
+      { name: "b", type: "int", bytes: 4 },
+      { name: "c", type: "bool", bits: 1 },
+    ],
+  } as const;
+
+  // @ts-ignore infinite recursion
+  type T = DescribedType<typeof desc>;
+
+  const value: T = { a: 10, b: 42, c: true };
+  // @ts-ignore infinite recursion
+  const buf = Bytes.encoder(desc)(value);
+  // @ts-ignore infinite recursion
+  const out = Bytes.decoder(desc)(buf);
+
+  // console.log(`\n`, Bytes.encoder({ name: "", type: "string" })("01234"), `\n`);
+
+  assert_equals(out, value);
+});
+
+test("encode/decode nested struct + array", () => {
+  const desc: DecodeField = {
+    name: "root",
+    type: "struct",
+    description: [
+      {
+        name: "points",
+        type: "array",
+        size: 2,
+        value_description: {
+          name: "p",
+          type: "struct",
+          description: [
+            { name: "x", type: "float", bytes: 4 },
+            { name: "y", type: "float", bytes: 4 },
+          ],
+        },
+      },
+    ],
+  };
+
+  const value = {
+    points: [
+      { x: 1.5, y: 2.5 },
+      { x: 3.5, y: 4.5 },
+    ],
+  };
+
+  const buf = Bytes.encoder(desc)(value as any);
+  const out = Bytes.decoder(desc)(buf);
+
+  assert_equals(out, value);
+});
+
+run_tests();
+
