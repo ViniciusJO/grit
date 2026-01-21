@@ -4,9 +4,9 @@ import {
   Bytes,
   type DecodeField,
   type DescribedType,
-} from "./src/Bytes.ts";
+} from "./Bytes.ts";
 
-import { assert, assert_equals, run_tests, test  } from "./src/Test.ts";
+import { assert, assert_equals, run_tests, test  } from "./Test.ts";
 
 /* =========================================================
  * Bytes.from / Bytes.to
