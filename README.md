@@ -6,29 +6,29 @@ This library allows manual handling of bytes or to declarativelly write binary l
 
 * Encodes JavaScript objects → `Uint8Array`
 * Decodes `Uint8Array` → strongly‑typed objects
-* Works at **bit‑level or byte‑level precision**
+* Works at bit‑level or byte‑level precision
 * Allows configuration of in/out endianness
-* Shares the same codebase across **Deno, Node.js, and Bun**
+* Shares the same codebase across Bun, Deno and Node.js
 
 No runtime‑specific APIs are required beyond standard Web/JS primitives.
 
----
+<!-- --- -->
 
-## Features
-
-* ✅ Runtime‑agnostic (Deno / Node / Bun)
-* ✅ Big or Little endian in/out buffers
-* ✅ Bit‑accurate binary slicing
-* ✅ Declarative binary schemas
-* ✅ Recursive structs and arrays
-* ✅ Strong TypeScript inference
-* ✅ Zero dependencies
+<!-- ## Features -->
+<!---->
+<!-- * Runtime‑agnostic (Deno / Node / Bun) -->
+<!-- * Big or Little endian in/out buffers -->
+<!-- * Bit‑accurate binary slicing -->
+<!-- * Declarative binary schemas -->
+<!-- * Recursive structs and arrays -->
+<!-- * Strong TypeScript inference -->
+<!-- * Zero dependencies -->
 
 ---
 
 ## Installation
 
-As a source‑first library, just copy the `Bytes.ts` file to your project folder andthen import:
+As a source‑first library, just copy the `Bytes.ts` file to your project folder and then import:
 
 ```ts
 import { Bytes } from "./Bytes.ts";
@@ -43,12 +43,12 @@ import { Bytes } from "./Bytes.ts";
 All the functions that deal with multiple bytes defaults its input and output endianess to little endian, but are configurable by arguments of type:
 
 ```typescript
-type Endianness = `LITTLE` | `BIG`;
+type Endianness = "LITTLE" | "BIG";
 ```
 
 ### Type Strings
 
-Primitive binary types are represented as string literals:
+For use in this libary, binary types are represented as string literals:
 
 ```ts
 type TypeAsString =
@@ -79,7 +79,7 @@ They map to concrete TypeScript types:
 
 ## Bytes Utility
 
-Low‑level byte ↔ value conversion helpers.
+Byte <-> value conversion helpers.
 
 ### `Bytes.from(type: PrimitiveAsString, out_endianness: Endianness)`
 
@@ -94,12 +94,12 @@ Supported types:
 
 ```typescript
 type PrimitiveAsString =
-    `bool` |
-	`byte` |
-	`int` |
-	`float` |
-	`double` |
-	`string`;
+    | "bool"
+	| "byte"
+	| "int"
+	| "float"
+	| "double"
+	| "string";
 ```
 
 ---
@@ -284,11 +284,9 @@ const Shape = {
 
 ### Runtime Compatibility
 
-| Runtime | Supported |
-| ------- | --------- |
-| Deno    | ✅         |
-| Node    | ✅         |
-| Bun     | ✅         |
+- [x] Bun
+- [x] Deno
+- [x] Node
 
 Relies only on:
 
