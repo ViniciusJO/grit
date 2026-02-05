@@ -2,11 +2,12 @@
 
 import {
   Bytes,
+  Endianness,
   type DecodeField,
   type DescribedType,
 } from "./Bytes.ts";
 
-import { assert, assert_equals, run_tests, test  } from "./Test.ts";
+import { assert, assert_equals, run_tests, test  } from "./__Test.ts";
 
 /* =========================================================
  * Bytes.from / Bytes.to
@@ -68,8 +69,45 @@ test("strlen full buffer", () => {
 
 test("reframe extracts bits", () => {
   const v = new Uint8Array([0b10101010, 0b11001100]);
-  const r = Bytes.reframe(8, 8)(v);
+  let r: Uint8Array;
+
+  // [0b10101010, 0b11001100] Little => 0b1100110010101010
+  // reframed: 0b | [11001100] | 10101010
+  r = Bytes.reframe(8, 8)(v);
   assert_equals(r[0], 0b11001100);
+  // reframed: 0b11001100 | [ 1010 ] | 1010
+  r = Bytes.reframe(4,4)(v);
+	assert_equals(r[0], 0b00001010);
+  // reframed: 0b1100110 | [ 01010 ] | 1010
+  r = Bytes.reframe(4,5)(v);
+	assert_equals(r[0], 0b00001010);
+  // reframed: 0b110011 | [ 001010 ] | 1010
+  r = Bytes.reframe(4,6)(v);
+	assert_equals(r[0], 0b00001010);
+  // reframed: 0b11001 | [ 1001010 ] | 1010
+  r = Bytes.reframe(4,7)(v);
+	assert_equals(r[0], 0b01001010);
+
+  // [0b10101010, 0b11001100] Little => 0b1100110010101010
+  // reframed: 0b110 | [01] [10010101] | 010
+  // out Little: [0b10010101, 0b00000001]
+  r = Bytes.reframe(3, 10)(v);
+  assert_equals(r[0], 0b10010101);
+  assert_equals(r[1], 0b00000001);
+
+  // [0b10101010, 0b11001100] Big => 0b1010101011001100
+  // reframed: 0b101 | [01] [01011001] | 100
+  // out Little: [0b01011001, 0b00000001]
+  r = Bytes.reframe(3, 10, Endianness.BIG)(v);
+  assert_equals(r[0], 0b01011001);
+  assert_equals(r[1], 0b00000001);
+
+  // [0b10101010, 0b11001100] Big => 0b1010101011001100
+  // reframed: 0b101 | [01] [01011001] | 100
+  // out BIG: [0b00000001, 0b01011001]
+  r = Bytes.reframe(3, 10, Endianness.BIG, Endianness.BIG)(v);
+  assert_equals(r[0], 0b00000001);
+  assert_equals(r[1], 0b01011001);
 });
 
 // TODO: fix _reframe

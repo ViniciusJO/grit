@@ -3,6 +3,8 @@
 export type Prettify<T> = { [K in keyof T]: T[K]; } & {};
 export type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
 
+export enum Endianness { LITTLE, BIG }
+
 export type PrimitiveAsString = `bool` | `byte` | `int` | `float` | `double` | `string`;
 export type CompoundAsString = `array` | `struct`;
 
@@ -266,25 +268,41 @@ export abstract class Bytes {
     };
   };
 
-  static reframe(offset: number, bits: number) {
-    return (v: Uint8Array) => {
-      const required_size = Math.ceil(bits / 8);
-      //print({ offset, bits, required_size });
-      const result = new Uint8Array(Math.ceil(bits / 8));
+  static reframe(
+    offset: number,
+    bits: number,
+    in_endianness: Endianness = Endianness.LITTLE,
+    out_endianness: Endianness = Endianness.LITTLE
+  ) {
+    const print = <T>(t: T): T => { console.log(t); return t;}
+    print;
 
-      const end = offset - 1 + bits;
+    const required_size = Math.ceil(bits / 8);
+
+    return (v: Uint8Array) => {
+      const result = new Uint8Array(required_size);
 
       for (let i = 0; i < bits; i++) {
-        const src_pos = Uint8Array_pos(end - i);
-        const dest_pos = Uint8Array_pos(required_size * 8 - i - 1);
+        const src_pos = Uint8Array_pos(offset + i);
+        const dest_pos = Uint8Array_pos(i);
 
-        //print(`src[${src_pos.byte}][${src_pos.bit}] --> dest[${dest_pos.byte}][${dest_pos.bit}]`);
-        //print(str_pad(8, `0`, `>`)((v[src_pos.byte] ?? 0).toString(2)));
 
-        result[dest_pos.byte] |= (Uint8Array_bit_at(v, src_pos)) << (7 - dest_pos.bit);
+        result[dest_pos.byte] |=
+          (Uint8Array_bit_at(v, src_pos, in_endianness)) << (dest_pos.bit);
+
+        // print(str_pad(8, `0`, `>`)((v[src_pos.byte] ?? 0).toString(2)));
+
+        // print(`src[${src_pos.byte}][${src_pos.bit}](${
+        //   Uint8Array_bit_at(v, src_pos)
+        // }) --> dest[${dest_pos.byte}][${dest_pos.bit}](${
+        //   Uint8Array_bit_at(result, dest_pos)
+        // })`);
       }
 
-      return (result.reverse());
+      switch(out_endianness) {
+        case Endianness.LITTLE: return result;
+        case Endianness.BIG: return (result.reverse());
+      }
     };
   };
 
@@ -308,13 +326,18 @@ export abstract class Bytes {
 }
 
 type Uint8ArrayPosition = { byte: number, bit: number };
-const Uint8Array_pos = (count: number): Uint8ArrayPosition => ({
+export const Uint8Array_pos = (count: number): Uint8ArrayPosition => ({
   byte: Math.floor(count / 8),
   bit: count % 8
 });
 
-function Uint8Array_bit_at(v: Uint8Array, pos: Uint8ArrayPosition): number {
-  return (v[pos.byte] >> (7 - pos.bit)) & 1;
+export function Uint8Array_bit_at(v: Uint8Array, pos: Uint8ArrayPosition, endianness: Endianness = Endianness.LITTLE): number {
+  let byte: number = 0;
+  switch(endianness) {
+    case Endianness.LITTLE: byte = v[pos.byte]; break;
+    case Endianness.BIG: byte = v[v.length - 1 - pos.byte]; break;
+  }
+  return (byte >> pos.bit) & 1;
 }
 
 
