@@ -6,7 +6,7 @@ import {
   type DescribedType,
 } from "./Bytes.ts";
 
-import { assert, assert_equals, run_tests, test  } from "./__Test.ts";
+import { assert, assert_equals, run_tests, test  } from "./Test.ts";
 
 /* =========================================================
  * Bytes.from / Bytes.to
