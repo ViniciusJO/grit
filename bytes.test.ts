@@ -2,7 +2,7 @@
 
 import {
   Bytes,
-  type DecodeField,
+  type DecodeDescription,
   type DescribedType,
 } from "./Bytes.ts";
 
@@ -128,7 +128,7 @@ test("min_Bytes.size_in_memory primitives", () => {
 });
 
 test("min_Bytes.size_in_memory array", () => {
-  const d: DecodeField = {
+  const d: DecodeDescription = {
     name: "arr",
     type: "array",
     size: 4,
@@ -138,7 +138,7 @@ test("min_Bytes.size_in_memory array", () => {
 });
 
 test("min_Bytes.size_in_memory struct", () => {
-  const d: DecodeField = {
+  const d: DecodeDescription = {
     name: "s",
     type: "struct",
     description: [
@@ -154,14 +154,14 @@ test("min_Bytes.size_in_memory struct", () => {
  * ========================================================= */
 
 test("encode/decode primitive", () => {
-  const desc: DecodeField = { name: "x", type: "int", bytes: 4 };
+  const desc: DecodeDescription = { name: "x", type: "int", bytes: 4 };
   const buf = Bytes.encoder(desc)(123456 as any);
   const out = Bytes.decoder(desc)(buf);
   assert_equals(out, 123456);
 });
 
 test("encode/decode array", () => {
-  const desc: DecodeField = {
+  const desc: DecodeDescription = {
     name: "arr",
     type: "array",
     size: 3,
@@ -199,7 +199,7 @@ test("encode/decode struct", () => {
 });
 
 test("encode/decode nested struct + array", () => {
-  const desc: DecodeField = {
+  const desc: DecodeDescription = {
     name: "root",
     type: "struct",
     description: [

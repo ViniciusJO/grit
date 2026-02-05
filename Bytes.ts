@@ -30,27 +30,25 @@ export type TypesReference = TFS;
 
 export type Types = TFS[keyof TFS];
 
-export type DecodeField = { name: string } & (
+export type DecodeDescription = { name: string } & (
   | ({ type: `bool`; } & ({ bits: number; } | { bytes: number; }))
   | ({ type: `byte` | `int` | `float` | `double`; } & ({ bits: number; } | { bytes: number; }))
   | ({ type: `string`; bytes?: number; })
-  | ({ type: `array`; value_description: DecodeField; size: number; })
+  | ({ type: `array`; value_description: DecodeDescription; size: number; })
   | ({ type: `struct`; description: DecodeDescription[]; })
 );
 
-export type DecodeDescription = DecodeField;
-
-type DescribedObject<T extends DecodeField[]> = T[number] extends infer OBJ
-  ? OBJ extends DecodeField
+type DescribedObject<T extends DecodeDescription[]> = T[number] extends infer OBJ
+  ? OBJ extends DecodeDescription
     ? OBJ extends { name: infer NAME extends string }
       ? { [K in NAME]: DescribedType<OBJ> } : never
     : never
   : never;
 
 export type DescribedType<T extends DecodeDescription> =
-  T extends { type: `array`, value_description: infer TYPE extends DecodeField }
+  T extends { type: `array`, value_description: infer TYPE extends DecodeDescription }
     ? Array<DescribedType<TYPE>>
-    : T extends { type: `struct`, description: infer DESC extends DecodeField[]}
+    : T extends { type: `struct`, description: infer DESC extends DecodeDescription[]}
       ? Prettify<UnionToIntersection<DescribedObject<DESC>>>
       : TypesReference[T["type"]];
 
@@ -154,7 +152,7 @@ export abstract class Bytes {
           ret = new Uint8Array(v.flatMap(el => [ ...Bytes.encoder(desc.value_description)(el as any) ]));
         } break;
         case "struct": {
-          desc.description.forEach((d: DecodeField) => {
+          desc.description.forEach((d: DecodeDescription) => {
             const name = d.name as keyof DescribedType<T>;
             ret = new Uint8Array([ ...ret, ...Bytes.encoder(d)(value[name] as any) ]);
           });
@@ -209,7 +207,7 @@ export abstract class Bytes {
         }
         case "struct": {
           let ret = {};
-          desc.description.forEach((d: DecodeField) => {
+          desc.description.forEach((d: DecodeDescription) => {
             const name = d.name as keyof DescribedType<T>;
             const current_size = Bytes.size_in_memory(d);
             const dec = Bytes.decoder(d)(internal_value.subarray(pos, pos + current_size)) as DescribedType<typeof d>;
@@ -223,7 +221,7 @@ export abstract class Bytes {
 
   };
 
-  static size_in_memory(d: DecodeField, value?: Uint8Array): number {
+  static size_in_memory(d: DecodeDescription, value?: Uint8Array): number {
     switch(d.type) {
       case "bool":
         case "byte":
@@ -285,7 +283,7 @@ export abstract class Bytes {
     bits: number,
     in_endianness: Endianness = `LITTLE`,
     out_endianness: Endianness = `LITTLE`
-  ) {
+  ): (value: Uint8Array) => Uint8Array {
     const print = <T>(t: T): T => { console.log(t); return t;}
     print;
 

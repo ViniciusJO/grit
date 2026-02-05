@@ -33,7 +33,6 @@ As a source‑first library, just copy the `Bytes.ts` file to your project folde
 ```ts
 import { Bytes } from "./Bytes.ts";
 ```
-
 ---
 
 ## Core Concepts
@@ -52,14 +51,14 @@ For use in this libary, binary types are represented as string literals:
 
 ```ts
 type TypeAsString =
-  | "bool"
-  | "byte"
-  | "int"
-  | "float"
-  | "double"
-  | "string"
-  | "array"
-  | "struct";
+    | "bool"
+    | "byte"
+    | "int"
+    | "float"
+    | "double"
+    | "string"
+    | "array"
+    | "struct";
 ```
 
 They map to concrete TypeScript types:
@@ -81,7 +80,16 @@ They map to concrete TypeScript types:
 
 Byte <-> value conversion helpers.
 
-### `Bytes.from(type: PrimitiveAsString, out_endianness: Endianness)`
+### `Bytes.from`
+
+Signature:
+
+```ts
+<T extends PrimitiveAsString>(
+    type: T,
+    out_endianness: Endianness = `LITTLE`
+) => (value: PrimitiveTypeReference[T]) => Uint8Array
+```
 
 Encodes a value into a `Uint8Array`.
 
@@ -104,18 +112,38 @@ type PrimitiveAsString =
 
 ---
 
-### `Bytes.to(type: PrimitiveAsString, in_endianness: Endianness)`
+### `Bytes.to`
+
+Signature: 
+
+```ts
+<T extends PrimitiveAsString>(
+    type: T,
+    in_endianness: Endianness = `LITTLE`
+) => (value: Uint8Array) => PrimitiveTypeReference[T] | void
+```
 
 Decodes a `Uint8Array` into a JS value.
 
 ```ts
+
 const decodeInt = Bytes.to("int");
 const value = decodeInt(buf);
 ```
 
 ---
 
-### `Bytes.padding(size: number, in_endianness: Endianness, out_endianness: Endianness)`
+### `Bytes.padding`
+
+Signature:
+
+```typescript
+(
+    size: number,
+    in_endianness: Endianness = `LITTLE`,
+    out_endianness: Endianness = `LITTLE`
+) => (value: Uint8Array) => Uint8Array
+```
 
 Pads a `Uint8Array` to a fixed size.
 
@@ -126,7 +154,13 @@ const padded = pad8(new Uint8Array([1, 2]));
 
 ---
 
-### `Bytes.toBase64(value: Uint8Array)`
+### `Bytes.toBase64`
+
+Signature:
+
+```typescript
+(value: Uint8Array) => string
+```
 
 Encodes binary data to Base64.
 
@@ -138,7 +172,18 @@ const b64 = Bytes.toBase64(buf);
 
 ## Bit & Byte Manipulation
 
-### `Bytes.reframe(offset: number, bits: number, in_endianness?: Endianness, out_endianness?: Endianness)`
+### `Bytes.reframe`
+
+Signature:
+
+```typescript
+(
+    offset: number,
+    bits: number,
+    in_endianness: Endianness = `LITTLE`,
+    out_endianness: Endianness = `LITTLE`
+) => (value: Uint8Array) => Uint8Array
+```
 
 Extracts a bit‑range from a `Uint8Array`.
 
@@ -153,7 +198,13 @@ Result is right‑aligned and byte‑packed.
 
 ---
 
-### `Bytes.strlen(buffer: Uint8Array)`
+### `Bytes.strlen`
+
+Signature:
+
+```typescript
+(buff: Uint8Array) => number
+```
 
 C‑style string length detection (null‑terminated).
 
@@ -216,7 +267,13 @@ type PacketType = DescribedType<typeof Packet>;
 
 ### Size Calculation
 
-#### `Bytes.size_in_memory(description: DecodeDescription)`
+#### `Bytes.size_in_memory`
+
+Signature:
+
+```typescript
+(d: DecodeDescription, value?: Uint8Array) => number
+```
 
 Computes the minimum required size in bytes.
 
@@ -230,7 +287,16 @@ Works recursively for arrays and structs.
 
 ### Encoding
 
-#### `Bytes.encoder(description: DecodeDescription, out_endianness: Endianness)`
+#### `Bytes.encoder`
+
+Signature:
+
+```typescript
+<T extends DecodeDescription>(
+    desc: T,
+    out_endianness: Endianness = `LITTLE`
+) => (value: DescribedType<T>) => Uint8Array
+```
 
 Returns a function that encodes structured data into binary.
 
@@ -243,7 +309,16 @@ const buf = encode({ id: 1, temperature: 36.5, valid: true });
 
 ### Decoding
 
-#### `Bytes.decoder(description: DecodeDescription, in_endianness: Endianness)`
+#### `Bytes.decoder`
+
+Signature:
+
+```typescript
+<T extends DecodeDescription>(
+    desc: T,
+    in_endianness: Endianness = `LITTLE`
+) => (value: Uint8Array) => DescribedType<T>
+```
 
 Returns a function that decodes binary data into structured objects.
 
@@ -282,7 +357,7 @@ const Shape = {
 
 ---
 
-### Runtime Compatibility
+### Tested Runtime Compatibility
 
 - [x] Bun
 - [x] Deno
@@ -297,5 +372,4 @@ Relies only on:
 
 ## TODO
 
-- [ ] specify return types
 - [ ] better methods explanations
