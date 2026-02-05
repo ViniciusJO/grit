@@ -373,3 +373,4 @@ Relies only on:
 ## TODO
 
 - [ ] better methods explanations
+- [ ] encoding/decoding not byte aligned structures
