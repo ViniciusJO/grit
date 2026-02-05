@@ -2,7 +2,6 @@
 
 import {
   Bytes,
-  Endianness,
   type DecodeField,
   type DescribedType,
 } from "./Bytes.ts";
@@ -98,14 +97,14 @@ test("reframe extracts bits", () => {
   // [0b10101010, 0b11001100] Big => 0b1010101011001100
   // reframed: 0b101 | [01] [01011001] | 100
   // out Little: [0b01011001, 0b00000001]
-  r = Bytes.reframe(3, 10, Endianness.BIG)(v);
+  r = Bytes.reframe(3, 10, `BIG`)(v);
   assert_equals(r[0], 0b01011001);
   assert_equals(r[1], 0b00000001);
 
   // [0b10101010, 0b11001100] Big => 0b1010101011001100
   // reframed: 0b101 | [01] [01011001] | 100
   // out BIG: [0b00000001, 0b01011001]
-  r = Bytes.reframe(3, 10, Endianness.BIG, Endianness.BIG)(v);
+  r = Bytes.reframe(3, 10, `BIG`, `BIG`)(v);
   assert_equals(r[0], 0b00000001);
   assert_equals(r[1], 0b01011001);
 });

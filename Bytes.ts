@@ -3,7 +3,7 @@
 export type Prettify<T> = { [K in keyof T]: T[K]; } & {};
 export type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
 
-export enum Endianness { LITTLE, BIG }
+export type Endianness = `LITTLE` | `BIG`;
 
 export type PrimitiveAsString = `bool` | `byte` | `int` | `float` | `double` | `string`;
 export type CompoundAsString = `array` | `struct`;
@@ -17,12 +17,12 @@ export type PrimitiveTypeReference = {
   float: number;
   double: number;
   string: string;
-}
+};
 
 export type CompoundTypeReference = {
   array: Array<unknown>;
   struct: object;
-}
+};
 
 type TFS = PrimitiveTypeReference & CompoundTypeReference;
 
@@ -55,34 +55,39 @@ export type DescribedType<T extends DecodeDescription> =
       : TypesReference[T["type"]];
 
 export abstract class Bytes {
-  static to<T extends PrimitiveAsString>(type: T): (value: Uint8Array) => PrimitiveTypeReference[T] | void {
+  static to<T extends PrimitiveAsString>(type: T, in_endianness: Endianness = `LITTLE`): (value: Uint8Array) => PrimitiveTypeReference[T] | void {
     return function(value: Uint8Array): PrimitiveTypeReference[T] | void {
+      let internal_value: Uint8Array;
+      switch(in_endianness) {
+        case `LITTLE`: internal_value = value; break;
+        case `BIG`: internal_value = value.reverse(); break;
+      }
       switch (type) {
         case `bool`: {
-          return value[0] > 0 as TypesReference[T];
+          return internal_value[0] > 0 as TypesReference[T];
         }
         case `byte`:
-          return value[0] as TypesReference[T];
+          return internal_value[0] as TypesReference[T];
         case `int`:
-          return (value[0] | (value[1] << 8) | (value[2] << 16) | (value[3] << 24)) as TypesReference[T];
+          return (internal_value[0] | (internal_value[1] << 8) | (internal_value[2] << 16) | (internal_value[3] << 24)) as TypesReference[T];
         case `double`:
         case `float`: {
           const view = new DataView(
-            value.buffer,
-            value.byteOffset,
-            value.byteLength
+            internal_value.buffer,
+            internal_value.byteOffset,
+            internal_value.byteLength
           );
 
-          if (value.length === 4) {
+          if (internal_value.length === 4) {
             return view.getFloat32(0, true) as TypesReference[T];
           }
-          if (value.length === 8) {
+          if (internal_value.length === 8) {
             return view.getFloat64(0, true) as TypesReference[T];
           }
           return 0 as TypesReference[T];
         }
         case `string`: {
-          return new TextDecoder().decode(value) as TypesReference[T];
+          return new TextDecoder().decode(internal_value) as TypesReference[T];
         }
         default:
           return console.log(`Decode of type ${type} not implemented`);
@@ -90,43 +95,49 @@ export abstract class Bytes {
     };
   }
 
-  static from<T extends PrimitiveAsString>(type: T): (value: PrimitiveTypeReference[T]) => Uint8Array {
+  static from<T extends PrimitiveAsString>(type: T, out_endianness: Endianness = `LITTLE`): (value: PrimitiveTypeReference[T]) => Uint8Array {
     return function(value: PrimitiveTypeReference[T]): Uint8Array {
+      let ret = new Uint8Array();
       switch (type) {
-        case `string`:
-          return new TextEncoder().encode(value as string);
-        case `byte`:
-          return Uint8Array.from([value as number]);
+        case `string`: {
+          ret = new TextEncoder().encode(value as string);
+        } break;
+        case `byte`: {
+          ret = Uint8Array.from([value as number]);
+        } break;
         case `int`: {
           const arr = new ArrayBuffer(4);
           new Int32Array(arr)[0] = value as number;
-          return new Uint8Array(arr);
-        }
+          ret = new Uint8Array(arr);
+        } break;
         case `bool`: {
-          return new Uint8Array([ (value as boolean) ? 1 : 0 ]);
-        }
+          ret = new Uint8Array([ (value as boolean) ? 1 : 0 ]);
+        } break;
         case `double`: {
           const arr = new ArrayBuffer(8);
           const view = new DataView(arr);
           view.setFloat64(0, value as number, true);
-          return new Uint8Array(arr);
-        }
+          ret = new Uint8Array(arr);
+        } break;
         case `float`: {
           const arr = new ArrayBuffer(4);
           const view = new DataView(arr);
           view.setFloat32(0, value as number, true);
-          return new Uint8Array(arr);
-        }
-        default:
-          return new Uint8Array();
+          ret = new Uint8Array(arr);
+        } break;
+      }
+      switch(out_endianness) {
+        case `LITTLE`: return ret;
+        case `BIG`: return ret.reverse();
       }
     };
   }
 
    
   // TODO: check sizes
-  static encoder<T extends DecodeDescription>(desc: T): (value: DescribedType<T>) => Uint8Array {
+  static encoder<T extends DecodeDescription>(desc: T, out_endianness: Endianness = `LITTLE`): (value: DescribedType<T>) => Uint8Array {
     return value => {
+      let ret = new Uint8Array();
       switch(desc.type) {
         case "bool":
           case "byte":
@@ -135,29 +146,37 @@ export abstract class Bytes {
           case "double":
           case "string": {
           // @ts-ignore no infinite recursion
-          return Bytes.from(desc.type)(value);
-        }
+          ret = Bytes.from(desc.type)(value);
+        } break;
         case "array": {
           const v = value as Types[];
-          if(v.length < desc.size) return new Uint8Array();
-          return new Uint8Array(v.flatMap(el => [ ...Bytes.encoder(desc.value_description)(el as any) ]));
-        }
+          if(v.length < desc.size) break;
+          ret = new Uint8Array(v.flatMap(el => [ ...Bytes.encoder(desc.value_description)(el as any) ]));
+        } break;
         case "struct": {
-          let ret = new Uint8Array();
           desc.description.forEach((d: DecodeField) => {
             const name = d.name as keyof DescribedType<T>;
             ret = new Uint8Array([ ...ret, ...Bytes.encoder(d)(value[name] as any) ]);
           });
-          return ret;
-        }
+        } break;
+      }
+      switch(out_endianness) {
+        case `LITTLE`: return ret;
+        case `BIG`: return ret.reverse();
       }
     };
   };
 
   // TODO: check sizes
-  static decoder<T extends DecodeDescription>(desc: T): (value: Uint8Array) => DescribedType<T> {
-    let pos = 0;
+  static decoder<T extends DecodeDescription>(desc: T, in_endianness: Endianness = `LITTLE`): (value: Uint8Array) => DescribedType<T> {
     return value => {
+      let pos = 0;
+      let internal_value: Uint8Array;
+      switch(in_endianness) {
+        case `LITTLE`: internal_value = value; break;
+        case `BIG`: internal_value = value.reverse(); break;
+      }
+
       switch(desc.type) {
         case "bool":
           case "byte":
@@ -166,7 +185,7 @@ export abstract class Bytes {
           case "double":
           case "string": {
           // @ts-ignore no infinite recursion
-          const ret = Bytes.to(desc.type)(value);
+          const ret = Bytes.to(desc.type)(internal_value);
           if(!ret) switch(desc.type) {
             case "bool": return false as DescribedType<T>;
             case "byte":
@@ -183,7 +202,7 @@ export abstract class Bytes {
 
           const el_size = Bytes.size_in_memory(desc.value_description);
           for(let i = 0; i < desc.size; i++) {
-            x.push(Bytes.decoder(desc.value_description)(value.subarray(pos, pos+el_size)) as ElementType);
+            x.push(Bytes.decoder(desc.value_description)(internal_value.subarray(pos, pos+el_size)) as ElementType);
             pos += el_size;
           }
           return x as DescribedType<T>;
@@ -193,7 +212,7 @@ export abstract class Bytes {
           desc.description.forEach((d: DecodeField) => {
             const name = d.name as keyof DescribedType<T>;
             const current_size = Bytes.size_in_memory(d);
-            const dec = Bytes.decoder(d)(value.subarray(pos, pos + current_size)) as DescribedType<typeof d>;
+            const dec = Bytes.decoder(d)(internal_value.subarray(pos, pos + current_size)) as DescribedType<typeof d>;
             ret = { ...ret, [name]: dec };
             pos += current_size;
           });
@@ -235,12 +254,24 @@ export abstract class Bytes {
     }
   }
 
-  static padding(size: number): (value: Uint8Array) => Uint8Array {
+  static padding(size: number, in_endianness: Endianness = `LITTLE`, out_endianness: Endianness = `LITTLE`):
+    (value: Uint8Array) => Uint8Array {
     return function(value: Uint8Array): Uint8Array {
-      return new Uint8Array([...value, ...new Uint8Array(size - value.length)]);
+      let internal_value: Uint8Array;
+      switch(in_endianness) {
+        case `LITTLE`: internal_value = value; break;
+        case `BIG`: internal_value = value.reverse(); break;
+      }
+      switch(out_endianness) {
+        case `LITTLE`:
+          return new Uint8Array([...internal_value, ...new Uint8Array(size - internal_value.length)]);
+        case `BIG`:
+          return new Uint8Array([...new Uint8Array(size - internal_value.length), ...internal_value]);
+      }
     };
   }
 
+  // TODO: consider endianness?
   static toBase64(value: Uint8Array): string {
     let binary = "";
     for (let i = 0; i < value.length; i++) {
@@ -249,30 +280,11 @@ export abstract class Bytes {
     return btoa(binary);
   }
 
-  static reframe_(offset: number, bits: number): (value: Uint8Array) => Uint8Array {
-
-    return (v) => {
-      const required_size = Math.ceil(bits / 8);
-      const result = new Uint8Array(Math.ceil(bits / 8));
-
-      const end = offset - 1 + bits;
-
-      for (let i = 0; i < bits; i++) {
-        const src_pos = Uint8Array_pos(end - i);
-        const dest_pos = Uint8Array_pos(required_size * 8 - i - 1);
-
-        result[dest_pos.byte] |= Uint8Array_bit_at(v, src_pos) << (7 - dest_pos.bit);
-      }
-
-      return result; //.reverse();
-    };
-  };
-
   static reframe(
     offset: number,
     bits: number,
-    in_endianness: Endianness = Endianness.LITTLE,
-    out_endianness: Endianness = Endianness.LITTLE
+    in_endianness: Endianness = `LITTLE`,
+    out_endianness: Endianness = `LITTLE`
   ) {
     const print = <T>(t: T): T => { console.log(t); return t;}
     print;
@@ -300,8 +312,8 @@ export abstract class Bytes {
       }
 
       switch(out_endianness) {
-        case Endianness.LITTLE: return result;
-        case Endianness.BIG: return (result.reverse());
+        case `LITTLE`: return result;
+        case `BIG`: return (result.reverse());
       }
     };
   };
@@ -331,11 +343,11 @@ export const Uint8Array_pos = (count: number): Uint8ArrayPosition => ({
   bit: count % 8
 });
 
-export function Uint8Array_bit_at(v: Uint8Array, pos: Uint8ArrayPosition, endianness: Endianness = Endianness.LITTLE): number {
+export function Uint8Array_bit_at(v: Uint8Array, pos: Uint8ArrayPosition, endianness: Endianness = `LITTLE`): number {
   let byte: number = 0;
   switch(endianness) {
-    case Endianness.LITTLE: byte = v[pos.byte]; break;
-    case Endianness.BIG: byte = v[v.length - 1 - pos.byte]; break;
+    case `LITTLE`: byte = v[pos.byte]; break;
+    case `BIG`: byte = v[v.length - 1 - pos.byte]; break;
   }
   return (byte >> pos.bit) & 1;
 }
